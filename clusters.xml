@@ -1,0 +1,22 @@
+<classification>
+ <version>1.0</version>
+ <objects>
+  <object>
+   <objectId>3fe481ec-b539-458f-bbc0-a246c2298d6b</objectId>
+   <type>BLDG</type>
+   <state>INITIAL</state>
+   <campaign>Dubbo_20170427</campaign>
+   <clusterIds>
+    <int>1</int>
+   </clusterIds>
+  </object>
+ </objects>
+ <clusters>
+  <cluster>
+   <clusterId>1</clusterId>
+   <objectIds>
+    <string>3fe481ec-b539-458f-bbc0-a246c2298d6b</string>
+   </objectIds>
+  </cluster>
+ </clusters>
+</classification>
