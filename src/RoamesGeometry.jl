@@ -72,7 +72,6 @@ if VERSION >= v"0.7.0"
     using TypedTables
     using FileIO
     using LasIO
-    using HDF5
     using Colors
     using FixedPointNumbers
     using Dates
