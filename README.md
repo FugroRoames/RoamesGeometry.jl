@@ -1,5 +1,8 @@
 # RoamesGeometry
 
+_Fork of RoamesGeometry with HDF5 functionality removed._
+
+
 *Primitive geometric objects for Roames modelling.*
 
 ## Overview
