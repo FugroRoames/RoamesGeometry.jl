@@ -2,6 +2,7 @@ using RoamesGeometry
 VERSION < v"0.7" ? using Base.Test : using Test
 using StaticArrays
 using CoordinateTransformations
+using Rotations
 
 include("Line.jl")
 include("LineString.jl")
