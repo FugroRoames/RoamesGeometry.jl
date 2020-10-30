@@ -281,7 +281,7 @@ function make_table(points::AbstractVector{LasPoint0}, offset, scale)
     numberofreturns = map(p -> (p.flag_byte & 0b00111000) >> 3, points)
     classification = map(p -> p.raw_classification, points)
     pointsourceid = map(p -> p.pt_src_id, points)
-    
+
     return Table(position = position,
                  intensity = intensity,
                  returnnumber = returnnumber,
@@ -301,7 +301,7 @@ function make_table(points::AbstractVector{LasPoint1}, offset, scale)
     classification = map(p -> p.raw_classification, points)
     pointsourceid = map(p -> p.pt_src_id, points)
     gpstime = map(p -> p.gps_time, points)
-    
+
     return Table(position = position,
                  intensity = intensity,
                  returnnumber = returnnumber,
@@ -321,7 +321,7 @@ function make_table(points::AbstractVector{LasPoint2}, offset, scale)
     numberofreturns = map(p -> (p.flag_byte & 0b00111000) >> 3, points)
     classification = map(p -> p.raw_classification, points)
     pointsourceid = map(p -> p.pt_src_id, points)
-    
+
     color = map(points) do p
         @inbounds RGB(p.red, p.green, p.blue)
     end
@@ -346,7 +346,7 @@ function make_table(points::AbstractVector{LasPoint3}, offset, scale)
     classification = map(p -> p.raw_classification, points)
     pointsourceid = map(p -> p.pt_src_id, points)
     gpstime = map(p -> p.gps_time, points)
-    
+
     color = map(points) do p
         @inbounds RGB(p.red, p.green, p.blue)
     end
@@ -406,7 +406,7 @@ function save_h5_repo2(filename::AbstractString, pc::AbstractVector{<:NamedTuple
         points = Matrix{Float64}(undef, (length(format), length(pc)))
         n_attrs = 0
 
-        for i in 1:length(format)            
+        for i in 1:length(format)
             if format[i] == 'X'
                 points[i,:] .= (p -> p[1]).(pc.position)
                 n_attrs += 1
@@ -565,12 +565,12 @@ function save_las(filename::AbstractString, pc::AbstractVector{<:NamedTuple}; x_
                              0, # n_vlr
                              data_format_id, # data_format_id
                              data_record_length, # data_format_id
-                             records_count, 
+                             records_count,
                              point_return_count,
                              x_scale,
                              y_scale,
                              z_scale,
-                             x_offset, 
+                             x_offset,
                              y_offset,
                              z_offset,
                              x_max,
@@ -587,14 +587,14 @@ end
 
 function laspoint3(p::NamedTuple, x_offset, y_offset, z_offset, x_scale, y_scale, z_scale)
     position = p.position
-    @inbounds x = round(Int32, (position[1] - x_offset) / x_scale) 
-    @inbounds y = round(Int32, (position[2] - y_offset) / y_scale) 
-    @inbounds z = round(Int32, (position[3] - z_offset) / z_scale) 
+    @inbounds x = round(Int32, (position[1] - x_offset) / x_scale)
+    @inbounds y = round(Int32, (position[2] - y_offset) / y_scale)
+    @inbounds z = round(Int32, (position[3] - z_offset) / z_scale)
     intensity = haskey(p, :intensity) ? convert(UInt16, p.intensity) : 0x0000
     flagbyte = (haskey(p, :numberofreturns) ? convert(UInt8, p.numberofreturns) << 3 : 0x08) | (haskey(p, :returnnumber) ? convert(UInt8, p.returnnumber) : 0x01)
     raw_classification = haskey(p, :classification) ? convert(UInt8, p.classification) : 0x00
     scan_angle = 0x00
-    user_data = 0x00
+    user_data = haskey(p, :userdata) ? p.userdata : 0x00
     pt_src_id = haskey(p, :pointsourceid) ? convert(UInt16, p.pointsourceid) : 0x0000
     gps_time = haskey(p, :gpstime) ? convert(Float64, p.gpstime) : 0.0
     red = haskey(p, :color) ? convert(N0f16, p.color.r) : 0N0f16
@@ -606,9 +606,9 @@ end
 
 function laspoint2(p::NamedTuple, x_offset, y_offset, z_offset, x_scale, y_scale, z_scale)
     position = p.position
-    @inbounds x = round(Int32, (position[1] - x_offset) / x_scale) 
-    @inbounds y = round(Int32, (position[2] - y_offset) / y_scale) 
-    @inbounds z = round(Int32, (position[3] - z_offset) / z_scale) 
+    @inbounds x = round(Int32, (position[1] - x_offset) / x_scale)
+    @inbounds y = round(Int32, (position[2] - y_offset) / y_scale)
+    @inbounds z = round(Int32, (position[3] - z_offset) / z_scale)
     intensity = haskey(p, :intensity) ? convert(UInt16, p.intensity) : 0x0000
     flagbyte = (haskey(p, :numberofreturns) ? convert(UInt8, p.numberofreturns) << 3 : 0x08) | (haskey(p, :returnnumber) ? convert(UInt8, p.returnnumber) : 0x01)
     raw_classification = haskey(p, :classification) ? convert(UInt8, p.classification) : 0x00
@@ -624,9 +624,9 @@ end
 
 function laspoint1(p::NamedTuple, x_offset, y_offset, z_offset, x_scale, y_scale, z_scale)
     position = p.position
-    @inbounds x = round(Int32, (position[1] - x_offset) / x_scale) 
-    @inbounds y = round(Int32, (position[2] - y_offset) / y_scale) 
-    @inbounds z = round(Int32, (position[3] - z_offset) / z_scale) 
+    @inbounds x = round(Int32, (position[1] - x_offset) / x_scale)
+    @inbounds y = round(Int32, (position[2] - y_offset) / y_scale)
+    @inbounds z = round(Int32, (position[3] - z_offset) / z_scale)
     intensity = haskey(p, :intensity) ? convert(UInt16, p.intensity) : 0x0000
     flagbyte = (haskey(p, :numberofreturns) ? convert(UInt8, p.numberofreturns) << 3 : 0x08) | (haskey(p, :returnnumber) ? convert(UInt8, p.returnnumber) : 0x01)
     raw_classification = haskey(p, :classification) ? convert(UInt8, p.classification) : 0x00
@@ -640,9 +640,9 @@ end
 
 function laspoint0(p::NamedTuple, x_offset, y_offset, z_offset, x_scale, y_scale, z_scale)
     position = p.position
-    @inbounds x = round(Int32, (position[1] - x_offset) / x_scale) 
-    @inbounds y = round(Int32, (position[2] - y_offset) / y_scale) 
-    @inbounds z = round(Int32, (position[3] - z_offset) / z_scale) 
+    @inbounds x = round(Int32, (position[1] - x_offset) / x_scale)
+    @inbounds y = round(Int32, (position[2] - y_offset) / y_scale)
+    @inbounds z = round(Int32, (position[3] - z_offset) / z_scale)
     intensity = haskey(p, :intensity) ? convert(UInt16, p.intensity) : 0x0000
     flagbyte = (haskey(p, :numberofreturns) ? convert(UInt8, p.numberofreturns) << 3 : 0x08) | (haskey(p, :returnnumber) ? convert(UInt8, p.returnnumber) : 0x01)
     raw_classification = haskey(p, :classification) ? convert(UInt8, p.classification) : 0x00
