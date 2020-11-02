@@ -556,9 +556,6 @@ function save_las(filename::AbstractString, pc::AbstractVector{<:NamedTuple}; x_
     end
 
     t = now()
-
-@show "hi there"
-
     header = LasIO.LasHeader(0, # file_source_id
                              global_encoding, # global_encoding
                              0, # guid_1
