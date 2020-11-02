@@ -476,7 +476,7 @@ function data_to_h5(v::AbstractVector{RGB{N0f16}}, ::Val) where {n}
     return [reinterpret(UInt16, getfield(@inbounds(v[i]), channel)) for channel in [:r, :g, :b], i in firstindex(v):lastindex(v)]
 end
 
-function save_las(filename::AbstractString, pc::AbstractVector{<:NamedTuple}; x_scale = 0.001, y_scale = 0.001, z_scale = 0.001)
+function save_las(filename::AbstractString, pc::AbstractVector{<:NamedTuple}; x_scale = 0.001, y_scale = 0.001, z_scale = 0.001, global_encoding = UInt16(0), variable_length_records=[])
     # Get spatial bounds
     box = boundingbox(getproperty(:position).(pc))
     x_min = box.xmin
@@ -557,7 +557,7 @@ function save_las(filename::AbstractString, pc::AbstractVector{<:NamedTuple}; x_
 
     t = now()
     header = LasIO.LasHeader(0, # file_source_id
-                             0, # global_encoding
+                             global_encoding, # global_encoding
                              0, # guid_1
                              0, # guid_2
                              0, # guid_3
@@ -587,7 +587,7 @@ function save_las(filename::AbstractString, pc::AbstractVector{<:NamedTuple}; x_
                              y_min,
                              z_max,
                              z_min,
-                             [], #variable_length_records
+                             variable_length_records, #variable_length_records
                              []) #user_defined_bytes
 
     save(filename, header, data)
