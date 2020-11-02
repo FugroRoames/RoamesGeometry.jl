@@ -569,7 +569,7 @@ function save_las(filename::AbstractString, pc::AbstractVector{<:NamedTuple}; x_
                              dayofyear(t), # creation_year
                              year(t), # creation_dayofyear
                              227, # header_size
-                             227, # data_offset
+                             227+sum(sizeof, variable_length_records), # data_offset
                              length(variable_length_records), # n_vlr
                              data_format_id, # data_format_id
                              data_record_length, # data_format_id
