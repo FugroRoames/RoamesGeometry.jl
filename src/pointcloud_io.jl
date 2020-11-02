@@ -257,7 +257,7 @@ function hdf5_to_data(h5data::AbstractMatrix{UInt16}, ::Val{:color})
     @inbounds return [RGB(reinterpret(N0f16, h5data[1, i]), reinterpret(N0f16, h5data[2, i]), reinterpret(N0f16, h5data[3, i])) for i in 1:size(h5data, 2)]
 end
 
-function load_las(filename::AbstractString; spacing = nothing)
+function load_las(filename::AbstractString; spacing = nothing, getHeader = false)
     (header, points) = load(filename)
 
     pointcloud = make_table(points,
@@ -265,9 +265,17 @@ function load_las(filename::AbstractString; spacing = nothing)
                             SVector(header.x_scale, header.y_scale, header.z_scale))
 
     if spacing === nothing
-        return pointcloud
+        if getHeader
+            return pointcloud, header
+        else
+            return pointcloud
+        end
     else
-        return Table(merge(columns(pointcloud), (position = accelerate(pointcloud.position, GridIndex; spacing = spacing),)))
+        if getHeader
+            return Table(merge(columns(pointcloud), (position = accelerate(pointcloud.position, GridIndex; spacing = spacing),))), header
+        else
+            return Table(merge(columns(pointcloud), (position = accelerate(pointcloud.position, GridIndex; spacing = spacing),)))
+        end
     end
 end
 
