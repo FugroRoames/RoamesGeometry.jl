@@ -570,7 +570,7 @@ function save_las(filename::AbstractString, pc::AbstractVector{<:NamedTuple}; x_
                              year(t), # creation_dayofyear
                              227, # header_size
                              227, # data_offset
-                             0, # n_vlr
+                             length(variable_length_records), # n_vlr
                              data_format_id, # data_format_id
                              data_record_length, # data_format_id
                              records_count,
@@ -587,7 +587,7 @@ function save_las(filename::AbstractString, pc::AbstractVector{<:NamedTuple}; x_
                              y_min,
                              z_max,
                              z_min,
-                             variable_length_records, #variable_length_records
+                             variable_length_records,
                              []) #user_defined_bytes
 
     save(filename, header, data)
