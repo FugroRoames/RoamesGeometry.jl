@@ -138,7 +138,13 @@ function fit_catenary_origin_2d(x1::T, z1::T, x2::T, z2::T) where {T}
         end
 
         z0 = a*(1 - cosh(-x0/a))
-        return (a, x0, z0)
+
+        if !isfinite(z0)||!isfinite(x0)||!isfinite(a) # On rare occassions this path proves unstable when the standard one succeeds
+            # Continue with standard path
+            q_b = (x1*z2/x2 - x2*z1/x1)/(x1 - x2)
+        else
+            return (a, x0, z0)
+        end
     end
 
     a = inv(2*q_a)
