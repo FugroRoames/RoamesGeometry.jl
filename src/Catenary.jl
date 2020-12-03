@@ -120,7 +120,7 @@ function fit_catenary_origin_2d(x1::T, z1::T, x2::T, z2::T) where {T}
     # Find the catenary which matches best at the minimum
 
     # defend against straight catenaries and degeneracies
-    if isnan(q_a) || q_a == zero(T)
+    if isnan(q_a) || abs(q_a*max(x1,x2)) < 1e-6 # Second term selects cases where quadratic term changes z by less than 1e-6th of it's length
         # It's either flat or degenerate
 
         # Choose a bottom which is one million times further than points
@@ -138,7 +138,13 @@ function fit_catenary_origin_2d(x1::T, z1::T, x2::T, z2::T) where {T}
         end
 
         z0 = a*(1 - cosh(-x0/a))
-        return (a, x0, z0)
+
+        if !isfinite(z0)||!isfinite(x0)||!isfinite(a) # On rare occassions this path proves unstable when the standard one succeeds
+            # Continue with standard path
+            q_b = (x1*z2/x2 - x2*z1/x1)/(x1 - x2)
+        else
+            return (a, x0, z0)
+        end
     end
 
     a = inv(2*q_a)
