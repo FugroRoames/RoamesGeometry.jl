@@ -354,10 +354,13 @@ function make_table(points::AbstractVector{LasPoint3}, offset, scale)
     classification = map(p -> p.raw_classification, points)
     pointsourceid = map(p -> p.pt_src_id, points)
     gpstime = map(p -> p.gps_time, points)
+    userdata = map(p -> p.user_data, points)
 
     color = map(points) do p
         @inbounds RGB(p.red, p.green, p.blue)
     end
+
+
 
     return Table(position = position,
                  intensity = intensity,
@@ -366,6 +369,7 @@ function make_table(points::AbstractVector{LasPoint3}, offset, scale)
                  classification = classification,
                  pointsourceid = pointsourceid,
                  gpstime = gpstime,
+                 userdata = userdata,
                  color = color)
 end
 
