@@ -373,6 +373,36 @@ function make_table(points::AbstractVector{LasPoint3}, offset, scale)
                  color = color)
 end
 
+function make_table(points::AbstractVector{LasPoint7}, offset, scale)
+    position = map(points) do p
+        @inbounds SVector(p.x*scale[1] + offset[1], p.y*scale[2] + offset[2], p.z*scale[3] + offset[3])
+    end
+
+    intensity = map(p -> p.intensity, points)
+    returnnumber = map(p -> p.flag_byte_1 & 0b00001111, points)
+    numberofreturns = map(p -> (p.flag_byte_1 & 0b11110000) >> 4, points)
+    classification = map(p -> p.classification, points)
+    pointsourceid = map(p -> p.pt_src_id, points)
+    gpstime = map(p -> p.gps_time, points)
+    userdata = map(p -> p.user_data, points)
+
+    color = map(points) do p
+        @inbounds RGB(p.red, p.green, p.blue)
+    end
+
+
+
+    return Table(position = position,
+                 intensity = intensity,
+                 returnnumber = returnnumber,
+                 numberofreturns = numberofreturns,
+                 classification = classification,
+                 pointsourceid = pointsourceid,
+                 gpstime = gpstime,
+                 userdata = userdata,
+                 color = color)
+end
+
 
 # Saving
 
@@ -502,16 +532,31 @@ function save_las(filename::AbstractString, pc::AbstractVector{<:NamedTuple}; x_
     else
         if haskey(first(pc), :gpstime)
             if haskey(first(pc), :color)
-                data_format_id = 3
-                data_record_length = 34
-                data = Vector{LasPoint3}(undef, records_count)
-                @inbounds for i in 1:records_count
-                    p = pc[i]
-                    data[i] = laspoint3(p, x_offset, y_offset, z_offset, x_scale, y_scale, z_scale)
-                    if haskey(p, :returnnumber)
-                        point_return_count[p.returnnumber] += 1
-                    else
-                        point_return_count[1] += 1
+                if haskey(first(pc), :userdata) # Though user data is also present in point type 3 let's ue it as a differentiater for now
+                    data_format_id = 7
+                    data_record_length = 36 # in bytes
+                    data = Vector{LasPoint7}(undef, records_count)
+                    @inbounds for i in 1:records_count
+                        p = pc[i]
+                        data[i] = laspoint7(p, x_offset, y_offset, z_offset, x_scale, y_scale, z_scale)
+                        if haskey(p, :returnnumber)
+                            point_return_count[min(p.returnnumber, length(point_return_count))] += 1
+                        else
+                            point_return_count[1] += 1
+                        end
+                    end
+                else
+                    data_format_id = 3
+                    data_record_length = 34
+                    data = Vector{LasPoint3}(undef, records_count)
+                    @inbounds for i in 1:records_count
+                        p = pc[i]
+                        data[i] = laspoint3(p, x_offset, y_offset, z_offset, x_scale, y_scale, z_scale)
+                        if haskey(p, :returnnumber)
+                            point_return_count[p.returnnumber] += 1
+                        else
+                            point_return_count[1] += 1
+                        end
                     end
                 end
             else
@@ -558,26 +603,27 @@ function save_las(filename::AbstractString, pc::AbstractVector{<:NamedTuple}; x_
             end
         end
     end
-
+    version = data_format_id>3 ? 4 : 2
+    header_size = UInt16(data_format_id>3 ? 375 : 227)
     t = now()
-    header = LasIO.LasHeader(0, # file_source_id
+    header = LasIO.LasHeader(UInt16(0), # file_source_id
                              global_encoding, # global_encoding
-                             0, # guid_1
-                             0, # guid_2
-                             0, # guid_3
+                             UInt32(0), # guid_1
+                             UInt16(0), # guid_2
+                             UInt16(0), # guid_3
                              "", # guid_4
-                             1, # LAS version major
-                             2, # LAS version minor
+                             UInt8(1), # LAS version major
+                             UInt8(version), # LAS version minor
                              "OTHER", # System
                              "ROAMES Julia writer", # Software
-                             dayofyear(t), # creation_year
-                             year(t), # creation_dayofyear
-                             227, # header_size
-                             227+(!isempty(variable_length_records) ? sum(sizeof, variable_length_records) : 0), # data_offset
-                             length(variable_length_records), # n_vlr
-                             data_format_id, # data_format_id
-                             data_record_length, # data_format_id
-                             records_count,
+                             UInt16(dayofyear(t)), # creation_year
+                             UInt16(year(t)), # creation_dayofyear
+                             header_size, # header_size
+                             UInt32(header_size+(!isempty(variable_length_records) ? sum(sizeof, variable_length_records) : 0)), # data_offset
+                             UInt32(length(variable_length_records)), # n_vlr
+                             UInt8(data_format_id), # data_format_id
+                             UInt16(data_record_length), # data_format_id
+                             UInt32(records_count),
                              point_return_count,
                              x_scale,
                              y_scale,
@@ -591,10 +637,34 @@ function save_las(filename::AbstractString, pc::AbstractVector{<:NamedTuple}; x_
                              y_min,
                              z_max,
                              z_min,
+                             UInt64(0),
+                             UInt64(0),
+                             UInt32(0),
+                             UInt64(0),
+                             zeros(UInt64,15),
                              variable_length_records,
                              []) #user_defined_bytes
 
     save(filename, header, data)
+end
+
+function laspoint7(p::NamedTuple, x_offset, y_offset, z_offset, x_scale, y_scale, z_scale)
+    position = p.position
+    @inbounds x = round(Int32, (position[1] - x_offset) / x_scale)
+    @inbounds y = round(Int32, (position[2] - y_offset) / y_scale)
+    @inbounds z = round(Int32, (position[3] - z_offset) / z_scale)
+    intensity = haskey(p, :intensity) ? convert(UInt16, p.intensity) : 0x0000
+    flagbyte1 = (haskey(p, :numberofreturns) ? convert(UInt8, p.numberofreturns) << 4 : 0x10) | (haskey(p, :returnnumber) ? convert(UInt8, p.returnnumber) : 0x01)
+    classification = haskey(p, :classification) ? convert(UInt8, p.classification) : 0x00
+    scan_angle = 0x00
+    user_data = haskey(p, :userdata) ? p.userdata : 0x00
+    pt_src_id = haskey(p, :pointsourceid) ? convert(UInt16, p.pointsourceid) : 0x0000
+    gps_time = haskey(p, :gpstime) ? convert(Float64, p.gpstime) : 0.0
+    red = haskey(p, :color) ? convert(N0f16, p.color.r) : 0N0f16
+    green = haskey(p, :color) ? convert(N0f16, p.color.g) : 0N0f16
+    blue = haskey(p, :color) ? convert(N0f16, p.color.b) : 0N0f16
+
+    return LasPoint7(x, y, z, intensity, flagbyte1, 0x00, classification, user_data, scan_angle, pt_src_id, gps_time, red, green, blue)
 end
 
 function laspoint3(p::NamedTuple, x_offset, y_offset, z_offset, x_scale, y_scale, z_scale)
