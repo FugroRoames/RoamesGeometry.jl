@@ -134,7 +134,7 @@ function cells_bbox(grid::GridIndex, region::BoundingBox)
     if gx_max > grid.n_x
         gx_max = grid.n_x
     end
-    
+
     gy_min = Int(cld(ymin - grid.y0, grid.spacing))
     if gy_min < 1
         gy_min = 1
@@ -143,7 +143,7 @@ function cells_bbox(grid::GridIndex, region::BoundingBox)
     if gy_max > grid.n_y
         gy_max = grid.n_y
     end
-    
+
     return (gx_min, gx_max, gy_min, gy_max)
 end
 
@@ -204,6 +204,35 @@ function Base.count(pred::Base.Fix2{typeof(in), <:AbstractRegion}, points::Accel
     end
 
     return out
+end
+
+"""
+function containsMoreThanN(pred::Base.Fix2{typeof(in), <:AbstractRegion}, points::AcceleratedArray{<:Any, <:Any, <:Any, <:GridIndex}, N::Int64)
+    Returns true if N or more points are returned as true by the predicate pred.
+"""
+function containsMoreThanN(pred::Base.Fix2{typeof(in), <:AbstractRegion}, points::AcceleratedArray{<:Any, <:Any, <:Any, <:GridIndex}, N::Int64)
+    # First find the relevant grid cells
+    grid = points.index
+    (gx_min, gx_max, gy_min, gy_max) = cells_bbox(grid, boundingbox(pred.x))
+
+    count = 0
+
+    # Now we'll iterate over these cells and fill the indices
+    @inbounds for gy ∈ gy_min:gy_max
+        for gx ∈ gx_min:gx_max
+            for i ∈ grid[gx, gy]
+                j = grid.index[i]
+                p = points[j]
+
+                count += pred(p)
+                if count > N
+                    return true
+                end
+            end
+        end
+    end
+
+    return false
 end
 
 function Base.filter(pred::Base.Fix2{typeof(in), <:AbstractRegion}, points::AcceleratedArray{<:Any, <:Any, <:Any, <:GridIndex})
