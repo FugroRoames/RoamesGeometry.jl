@@ -54,6 +54,17 @@ getindex(c::Catenary, v::AbstractVector) = map(x -> c[x], v)
 (trans::AffineMap{M,V})(c::Catenary) where {M,V} = Catenary(c.transform ∘ inv(trans), c.lmin, c.lmax, c.a)
 
 """
+function databaseParams(c::Catenary)
+    return Roames database paramaters for a catenary object
+    ie Θ, x, y, z, lmin, lmax, a
+"""
+function database_params(c::Catenary)
+    temp = c[c.lmax][1:2] .- c[c.lmin][1:2]
+    θ = atan(temp[2], temp[1])
+    return θ, c[0]..., c.lmin, c.lmax, c.a
+end
+
+"""
     Quadratic(c::Catenary)
 
 Create a quadratic which approximates `c`. This is an approximate operation, however
