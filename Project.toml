@@ -1,7 +1,7 @@
 name = "RoamesGeometry"
 uuid = "7182eba8-869d-4e5d-8801-8896391ab281"
 authors = ["Andy Ferris <andy.ferris@roames.com.au>"]
-version = "3.0.0"
+version = "3.1.0"
 
 [deps]
 AcceleratedArrays = "44e12807-9a19-5591-91cf-c1b4fb89ce64"
