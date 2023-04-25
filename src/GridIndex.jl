@@ -1,17 +1,18 @@
 struct GridIndex{T, Index <: AbstractVector{Int}} <: AbstractIndex
-    x0::T
+    x0::T # x value of lower edge of lowest division in x
     y0::T
     spacing::T
-    n_x::Int
+    n_x::Int # number of grid squares in x
     n_y::Int
-    start_indices::Vector{Int}
-    index::Index
+    start_indices::Vector{Int} # the element of index which represents the first (lowest) point in each grid element,  with grid elements ordered from x0, y0 ... xMax,y0 ... x0,y0+1 ...etc
+    index::Index # the order of the point cloud points required to match start_indices description ie pc[GridIndex.index]  will reorder the points grouping all points in the same grid element together as well as in order of z value
 end
 
 Base.summary(i::GridIndex) = "GridIndex ($(i.n_x)×$(i.n_y) cells of spacing $(i.spacing))"
 
 Base.@propagate_inbounds Base.getindex(g::GridIndex, i, j) = g[i+g.n_x*(j-1)]
 Base.@propagate_inbounds Base.getindex(g::GridIndex, i) = (g.start_indices[i]):(g.start_indices[i+1]-1)
+# eg. to get all points in first grid element ie lowest x and lowest y use pc[pc.position.index.index[pc.position.index[1,1]]]
 
 function AcceleratedArrays.accelerate(points::AbstractVector{<:StaticVector{3, T}}, ::Type{GridIndex}; spacing = one(T)) where {T}
     grid = GridIndex(points; spacing = spacing)
@@ -134,7 +135,7 @@ function cells_bbox(grid::GridIndex, region::BoundingBox)
     if gx_max > grid.n_x
         gx_max = grid.n_x
     end
-    
+
     gy_min = Int(cld(ymin - grid.y0, grid.spacing))
     if gy_min < 1
         gy_min = 1
@@ -143,7 +144,7 @@ function cells_bbox(grid::GridIndex, region::BoundingBox)
     if gy_max > grid.n_y
         gy_max = grid.n_y
     end
-    
+
     return (gx_min, gx_max, gy_min, gy_max)
 end
 
@@ -204,6 +205,35 @@ function Base.count(pred::Base.Fix2{typeof(in), <:AbstractRegion}, points::Accel
     end
 
     return out
+end
+
+"""
+function containsMoreThanN(pred::Base.Fix2{typeof(in), <:AbstractRegion}, points::AcceleratedArray{<:Any, <:Any, <:Any, <:GridIndex}, N::Int64)
+    Returns true if N or more points are returned as true by the predicate pred.
+"""
+function containsMoreThanN(pred::Base.Fix2{typeof(in), <:AbstractRegion}, points::AcceleratedArray{<:Any, <:Any, <:Any, <:GridIndex}, N::Int64)
+    # First find the relevant grid cells
+    grid = points.index
+    (gx_min, gx_max, gy_min, gy_max) = cells_bbox(grid, boundingbox(pred.x))
+
+    count = 0
+
+    # Now we'll iterate over these cells and fill the indices
+    @inbounds for gy ∈ gy_min:gy_max
+        for gx ∈ gx_min:gx_max
+            for i ∈ grid[gx, gy]
+                j = grid.index[i]
+                p = points[j]
+
+                count += pred(p)
+                if count > N
+                    return true
+                end
+            end
+        end
+    end
+
+    return false
 end
 
 function Base.filter(pred::Base.Fix2{typeof(in), <:AbstractRegion}, points::AcceleratedArray{<:Any, <:Any, <:Any, <:GridIndex})

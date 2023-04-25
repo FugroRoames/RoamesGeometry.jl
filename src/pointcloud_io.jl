@@ -257,7 +257,7 @@ function hdf5_to_data(h5data::AbstractMatrix{UInt16}, ::Val{:color})
     @inbounds return [RGB(reinterpret(N0f16, h5data[1, i]), reinterpret(N0f16, h5data[2, i]), reinterpret(N0f16, h5data[3, i])) for i in 1:size(h5data, 2)]
 end
 
-function load_las(filename::AbstractString; spacing = nothing)
+function load_las(filename::AbstractString; spacing = nothing, getHeader = false)
     (header, points) = load(filename)
 
     pointcloud = make_table(points,
@@ -265,9 +265,17 @@ function load_las(filename::AbstractString; spacing = nothing)
                             SVector(header.x_scale, header.y_scale, header.z_scale))
 
     if spacing === nothing
-        return pointcloud
+        if getHeader
+            return pointcloud, header
+        else
+            return pointcloud
+        end
     else
-        return Table(merge(columns(pointcloud), (position = accelerate(pointcloud.position, GridIndex; spacing = spacing),)))
+        if getHeader
+            return Table(merge(columns(pointcloud), (position = accelerate(pointcloud.position, GridIndex; spacing = spacing),))), header
+        else
+            return Table(merge(columns(pointcloud), (position = accelerate(pointcloud.position, GridIndex; spacing = spacing),)))
+        end
     end
 end
 
@@ -281,7 +289,7 @@ function make_table(points::AbstractVector{LasPoint0}, offset, scale)
     numberofreturns = map(p -> (p.flag_byte & 0b00111000) >> 3, points)
     classification = map(p -> p.raw_classification, points)
     pointsourceid = map(p -> p.pt_src_id, points)
-    
+
     return Table(position = position,
                  intensity = intensity,
                  returnnumber = returnnumber,
@@ -301,7 +309,7 @@ function make_table(points::AbstractVector{LasPoint1}, offset, scale)
     classification = map(p -> p.raw_classification, points)
     pointsourceid = map(p -> p.pt_src_id, points)
     gpstime = map(p -> p.gps_time, points)
-    
+
     return Table(position = position,
                  intensity = intensity,
                  returnnumber = returnnumber,
@@ -321,7 +329,7 @@ function make_table(points::AbstractVector{LasPoint2}, offset, scale)
     numberofreturns = map(p -> (p.flag_byte & 0b00111000) >> 3, points)
     classification = map(p -> p.raw_classification, points)
     pointsourceid = map(p -> p.pt_src_id, points)
-    
+
     color = map(points) do p
         @inbounds RGB(p.red, p.green, p.blue)
     end
@@ -346,10 +354,13 @@ function make_table(points::AbstractVector{LasPoint3}, offset, scale)
     classification = map(p -> p.raw_classification, points)
     pointsourceid = map(p -> p.pt_src_id, points)
     gpstime = map(p -> p.gps_time, points)
-    
+    # userdata = map(p -> p.user_data, points)
+
     color = map(points) do p
         @inbounds RGB(p.red, p.green, p.blue)
     end
+
+
 
     return Table(position = position,
                  intensity = intensity,
@@ -358,9 +369,104 @@ function make_table(points::AbstractVector{LasPoint3}, offset, scale)
                  classification = classification,
                  pointsourceid = pointsourceid,
                  gpstime = gpstime,
+                #  userdata = userdata,
                  color = color)
 end
 
+function make_table(points::AbstractVector{LasPoint6}, offset, scale)
+    position = map(points) do p
+        @inbounds SVector(p.x*scale[1] + offset[1], p.y*scale[2] + offset[2], p.z*scale[3] + offset[3])
+    end
+
+    intensity = map(p -> p.intensity, points)
+    returnnumber = map(p -> p.flag_byte_1 & 0b00001111, points)
+    numberofreturns = map(p -> (p.flag_byte_1 & 0b11110000) >> 4, points)
+    classification = map(p -> p.classification, points)
+    pointsourceid = map(p -> p.pt_src_id, points)
+    gpstime = map(p -> p.gps_time, points)
+    userdata = map(p -> p.user_data, points)
+
+
+
+    return Table(position = position,
+                intensity = intensity,
+                returnnumber = returnnumber,
+                numberofreturns = numberofreturns,
+                classification = classification,
+                pointsourceid = pointsourceid,
+                gpstime = gpstime,
+                userdata = userdata)
+end
+
+function make_table(points::AbstractVector{LasPoint7}, offset, scale)
+    position = map(points) do p
+        @inbounds SVector(p.x*scale[1] + offset[1], p.y*scale[2] + offset[2], p.z*scale[3] + offset[3])
+    end
+
+    intensity = map(p -> p.intensity, points)
+    returnnumber = map(p -> p.flag_byte_1 & 0b00001111, points)
+    numberofreturns = map(p -> (p.flag_byte_1 & 0b11110000) >> 4, points)
+    classification = map(p -> p.classification, points)
+    pointsourceid = map(p -> p.pt_src_id, points)
+    gpstime = map(p -> p.gps_time, points)
+    userdata = map(p -> p.user_data, points)
+    flagbyte2 = map(p -> p.flag_byte_2, points) # classification flags, scanner channel, scan direction flag, edge of flight line
+    scanangle = map(p -> p.scan_angle, points)
+
+    color = map(points) do p
+        @inbounds RGB(p.red, p.green, p.blue)
+    end
+
+
+
+    return Table(position = position,
+                 intensity = intensity,
+                 returnnumber = returnnumber,
+                 numberofreturns = numberofreturns,
+                 classification = classification,
+                 pointsourceid = pointsourceid,
+                 gpstime = gpstime,
+                 userdata = userdata,
+                 color = color,
+                 flagbyte2 = flagbyte2,
+                 scanangle = scanangle)
+end
+
+function make_table(points::AbstractVector{LasPoint8}, offset, scale)
+    position = map(points) do p
+        @inbounds SVector(p.x*scale[1] + offset[1], p.y*scale[2] + offset[2], p.z*scale[3] + offset[3])
+    end
+
+    intensity = map(p -> p.intensity, points)
+    returnnumber = map(p -> p.flag_byte_1 & 0b00001111, points)
+    numberofreturns = map(p -> (p.flag_byte_1 & 0b11110000) >> 4, points)
+    classification = map(p -> p.classification, points)
+    pointsourceid = map(p -> p.pt_src_id, points)
+    gpstime = map(p -> p.gps_time, points)
+    userdata = map(p -> p.user_data, points)
+    nir = map(p -> p.nir, points)
+    flagbyte2 = map(p -> p.flag_byte_2, points) # classification flags, scanner channel, scan direction flag, edge of flight line
+    scanangle = map(p -> p.scan_angle, points)
+
+    color = map(points) do p
+        @inbounds RGB(p.red, p.green, p.blue)
+    end
+
+
+
+    return Table(position = position,
+                 intensity = intensity,
+                 returnnumber = returnnumber,
+                 numberofreturns = numberofreturns,
+                 classification = classification,
+                 pointsourceid = pointsourceid,
+                 gpstime = gpstime,
+                 userdata = userdata,
+                 color = color,
+                 nir = nir,
+                 flagbyte2 = flagbyte2,
+                 scanangle = scanangle)
+end
 
 # Saving
 
@@ -406,7 +512,7 @@ function save_h5_repo2(filename::AbstractString, pc::AbstractVector{<:NamedTuple
         points = Matrix{Float64}(undef, (length(format), length(pc)))
         n_attrs = 0
 
-        for i in 1:length(format)            
+        for i in 1:length(format)
             if format[i] == 'X'
                 points[i,:] .= (p -> p[1]).(pc.position)
                 n_attrs += 1
@@ -468,7 +574,7 @@ function data_to_h5(v::AbstractVector{RGB{N0f16}}, ::Val) where {n}
     return [reinterpret(UInt16, getfield(@inbounds(v[i]), channel)) for channel in [:r, :g, :b], i in firstindex(v):lastindex(v)]
 end
 
-function save_las(filename::AbstractString, pc::AbstractVector{<:NamedTuple}; x_scale = 0.001, y_scale = 0.001, z_scale = 0.001)
+function save_las(filename::AbstractString, pc::AbstractVector{<:NamedTuple}; x_scale = 0.001, y_scale = 0.001, z_scale = 0.001, global_encoding = UInt16(0), variable_length_records=[])
     # Get spatial bounds
     box = boundingbox(getproperty(:position).(pc))
     x_min = box.xmin
@@ -481,96 +587,143 @@ function save_las(filename::AbstractString, pc::AbstractVector{<:NamedTuple}; x_
     y_offset = y_scale * div((y_min + y_max) / 2, y_scale)
     z_offset = z_scale * div((z_min + z_max) / 2, z_scale)
 
-    records_count = Int32(length(pc))
+    records_count = length(pc)
     point_return_count = UInt32[0,0,0,0,0]
+    extended_point_return_count = zeros(UInt64,15)
     if isempty(pc)
         data_format_id = 0
         data_record_length = 20
         data = LasPoint0[]
     else
-        if haskey(first(pc), :gpstime)
-            if haskey(first(pc), :color)
-                data_format_id = 3
-                data_record_length = 34
-                data = Vector{LasPoint3}(undef, records_count)
-                @inbounds for i in 1:records_count
-                    p = pc[i]
-                    data[i] = laspoint3(p, x_offset, y_offset, z_offset, x_scale, y_scale, z_scale)
-                    if haskey(p, :returnnumber)
-                        point_return_count[p.returnnumber] += 1
-                    else
-                        point_return_count[1] += 1
-                    end
-                end
-            else
-                data_format_id = 1
-                data_record_length = 28
-                data = Vector{LasPoint1}(undef, records_count)
-                @inbounds for i in 1:records_count
-                    p = pc[i]
-                    data[i] = laspoint1(p, x_offset, y_offset, z_offset, x_scale, y_scale, z_scale)
-                    if haskey(p, :returnnumber)
-                        point_return_count[p.returnnumber] += 1
-                    else
-                        point_return_count[1] += 1
-                    end
+        if haskey(first(pc), :nir)
+            data_format_id = 8
+            data_record_length = 38 # in bytes
+            data = Vector{LasPoint8}(undef, records_count)
+            @inbounds for i in 1:records_count
+                p = pc[i]
+                data[i] = laspoint8(p, x_offset, y_offset, z_offset, x_scale, y_scale, z_scale)
+                if haskey(p, :returnnumber)
+                    extended_point_return_count[min(p.returnnumber, length(extended_point_return_count))] += 1
+                else
+                    extended_point_return_count[1] += 1
                 end
             end
         else
-            if haskey(first(pc), :color)
-                data_format_id = 2
-                data_record_length = 26
-                data = Vector{LasPoint2}(undef, records_count)
-                @inbounds for i in 1:records_count
-                    p = pc[i]
-                    data[i] = laspoint2(p, x_offset, y_offset, z_offset, x_scale, y_scale, z_scale)
-                    if haskey(p, :returnnumber)
-                        point_return_count[p.returnnumber] += 1
+            if haskey(first(pc), :gpstime)
+                if haskey(first(pc), :color)
+                    if haskey(first(pc), :userdata) # Though user data is also present in point type 3 let's ue it as a differentiater for now
+                        data_format_id = 7
+                        data_record_length = 36 # in bytes
+                        data = Vector{LasPoint7}(undef, records_count)
+                        @inbounds for i in 1:records_count
+                            p = pc[i]
+                            data[i] = laspoint7(p, x_offset, y_offset, z_offset, x_scale, y_scale, z_scale)
+                            if haskey(p, :returnnumber)
+                                extended_point_return_count[min(p.returnnumber, length(extended_point_return_count))] += 1
+                            else
+                                extended_point_return_count[1] += 1
+                            end
+                        end
                     else
-                        point_return_count[1] += 1
+                        data_format_id = 3
+                        data_record_length = 34
+                        data = Vector{LasPoint3}(undef, records_count)
+                        @inbounds for i in 1:records_count
+                            p = pc[i]
+                            data[i] = laspoint3(p, x_offset, y_offset, z_offset, x_scale, y_scale, z_scale)
+                            if haskey(p, :returnnumber)
+                                point_return_count[p.returnnumber] += 1
+                            else
+                                point_return_count[1] += 1
+                            end
+                        end
+                    end
+                else
+                    if haskey(first(pc), :userdata)
+                        data_format_id = 6
+                        data_record_length = 30 # in bytes
+                        data = Vector{LasPoint6}(undef, records_count)
+                        @inbounds for i in 1:records_count
+                            p = pc[i]
+                            data[i] = laspoint6(p, x_offset, y_offset, z_offset, x_scale, y_scale, z_scale)
+                            if haskey(p, :returnnumber)
+                                point_return_count[min(p.returnnumber, length(point_return_count))] += 1
+                            else
+                                point_return_count[1] += 1
+                            end
+                        end
+                    else
+                        data_format_id = 1
+                        data_record_length = 28
+                        data = Vector{LasPoint1}(undef, records_count)
+                        @inbounds for i in 1:records_count
+                            p = pc[i]
+                            data[i] = laspoint1(p, x_offset, y_offset, z_offset, x_scale, y_scale, z_scale)
+                            if haskey(p, :returnnumber)
+                                point_return_count[p.returnnumber] += 1
+                            else
+                                point_return_count[1] += 1
+                            end
+                        end
                     end
                 end
             else
-                data_format_id = 0
-                data_record_length = 20
-                data = Vector{LasPoint0}(undef, records_count)
-                @inbounds for i in 1:records_count
-                    p = pc[i]
-                    data[i] = laspoint0(p, x_offset, y_offset, z_offset, x_scale, y_scale, z_scale)
-                    if haskey(p, :returnnumber)
-                        point_return_count[p.returnnumber] += 1
-                    else
-                        point_return_count[1] += 1
+                if haskey(first(pc), :color)
+                    data_format_id = 2
+                    data_record_length = 26
+                    data = Vector{LasPoint2}(undef, records_count)
+                    @inbounds for i in 1:records_count
+                        p = pc[i]
+                        data[i] = laspoint2(p, x_offset, y_offset, z_offset, x_scale, y_scale, z_scale)
+                        if haskey(p, :returnnumber)
+                            point_return_count[p.returnnumber] += 1
+                        else
+                            point_return_count[1] += 1
+                        end
+                    end
+                else
+                    data_format_id = 0
+                    data_record_length = 20
+                    data = Vector{LasPoint0}(undef, records_count)
+                    @inbounds for i in 1:records_count
+                        p = pc[i]
+                        data[i] = laspoint0(p, x_offset, y_offset, z_offset, x_scale, y_scale, z_scale)
+                        if haskey(p, :returnnumber)
+                            point_return_count[p.returnnumber] += 1
+                        else
+                            point_return_count[1] += 1
+                        end
                     end
                 end
             end
         end
     end
-
+    version = data_format_id>3 ? 4 : 2
+    header_size = UInt16(data_format_id>3 ? 375 : 227)
     t = now()
-    header = LasIO.LasHeader(0, # file_source_id
-                             0, # global_encoding
-                             0, # guid_1
-                             0, # guid_2
-                             0, # guid_3
+    header = LasIO.LasHeader(UInt16(0), # file_source_id
+                             global_encoding, # global_encoding
+                             UInt32(0), # guid_1
+                             UInt16(0), # guid_2
+                             UInt16(0), # guid_3
                              "", # guid_4
-                             1, # LAS version major
-                             2, # LAS version minor
+                             UInt8(1), # LAS version major
+                             UInt8(version), # LAS version minor
                              "OTHER", # System
                              "ROAMES Julia writer", # Software
-                             dayofyear(t), # creation_year
-                             year(t), # creation_dayofyear
-                             227, # header_size
-                             227, # data_offset
-                             0, # n_vlr
-                             data_format_id, # data_format_id
-                             data_record_length, # data_format_id
-                             records_count, 
+                             UInt16(dayofyear(t)), # creation_year
+                             UInt16(year(t)), # creation_dayofyear
+                             header_size, # header_size
+                             UInt32(header_size+(!isempty(variable_length_records) ? sum(sizeof, variable_length_records) : 0)), # data_offset
+                             UInt32(length(variable_length_records)), # n_vlr
+                             UInt8(data_format_id), # data_format_id
+                             UInt16(data_record_length), # data_format_id
+                             UInt32(data_format_id>6 ? 0 : records_count),
                              point_return_count,
                              x_scale,
                              y_scale,
                              z_scale,
-                             x_offset, 
+                             x_offset,
                              y_offset,
                              z_offset,
                              x_max,
@@ -579,21 +732,84 @@ function save_las(filename::AbstractString, pc::AbstractVector{<:NamedTuple}; x_
                              y_min,
                              z_max,
                              z_min,
-                             [], #variable_length_records
+                             UInt64(0),
+                             UInt64(0),
+                             UInt32(0),
+                             UInt64(data_format_id>6 ? records_count : 0),
+                             extended_point_return_count,
+                             variable_length_records,
                              []) #user_defined_bytes
 
     save(filename, header, data)
 end
 
+function laspoint6(p::NamedTuple, x_offset, y_offset, z_offset, x_scale, y_scale, z_scale)
+    position = p.position
+    @inbounds x = round(Int32, (position[1] - x_offset) / x_scale)
+    @inbounds y = round(Int32, (position[2] - y_offset) / y_scale)
+    @inbounds z = round(Int32, (position[3] - z_offset) / z_scale)
+    intensity = haskey(p, :intensity) ? convert(UInt16, p.intensity) : 0x0000
+    flagbyte1 = (haskey(p, :numberofreturns) ? convert(UInt8, p.numberofreturns) << 4 : 0x10) | (haskey(p, :returnnumber) ? convert(UInt8, p.returnnumber) : 0x01)
+    classification = haskey(p, :classification) ? convert(UInt8, p.classification) : 0x00
+    scan_angle = 0x00
+    user_data = haskey(p, :userdata) ? p.userdata : 0x00
+    pt_src_id = haskey(p, :pointsourceid) ? convert(UInt16, p.pointsourceid) : 0x0000
+    gps_time = haskey(p, :gpstime) ? convert(Float64, p.gpstime) : 0.0
+
+    return LasPoint6(x, y, z, intensity, flagbyte1, 0x00, classification, user_data, scan_angle, pt_src_id, gps_time)
+end
+
+function laspoint7(p::NamedTuple, x_offset, y_offset, z_offset, x_scale, y_scale, z_scale)
+    position = p.position
+    @inbounds x = round(Int32, (position[1] - x_offset) / x_scale)
+    @inbounds y = round(Int32, (position[2] - y_offset) / y_scale)
+    @inbounds z = round(Int32, (position[3] - z_offset) / z_scale)
+    intensity = haskey(p, :intensity) ? convert(UInt16, p.intensity) : 0x0000
+    flagbyte1 = (haskey(p, :numberofreturns) ? convert(UInt8, p.numberofreturns) << 4 : 0x10) | (haskey(p, :returnnumber) ? convert(UInt8, p.returnnumber) : 0x01)
+    classification = haskey(p, :classification) ? convert(UInt8, p.classification) : 0x00
+    scan_angle = haskey(p, :scanangle) ? p.scanangle : 0x00
+    user_data = haskey(p, :userdata) ? p.userdata : 0x00
+    pt_src_id = haskey(p, :pointsourceid) ? convert(UInt16, p.pointsourceid) : 0x0000
+    gps_time = haskey(p, :gpstime) ? convert(Float64, p.gpstime) : 0.0
+    red = haskey(p, :color) ? convert(N0f16, p.color.r) : 0N0f16
+    green = haskey(p, :color) ? convert(N0f16, p.color.g) : 0N0f16
+    blue = haskey(p, :color) ? convert(N0f16, p.color.b) : 0N0f16
+    flagbyte2 =  haskey(p, :flagbyte2) ? p.flagbyte2 : 0x00
+
+    return LasPoint7(x, y, z, intensity, flagbyte1, flagbyte2, classification, user_data, scan_angle, pt_src_id, gps_time, red, green, blue)
+end
+
+function laspoint8(p::NamedTuple, x_offset, y_offset, z_offset, x_scale, y_scale, z_scale)
+    position = p.position
+    @inbounds x = round(Int32, (position[1] - x_offset) / x_scale)
+    @inbounds y = round(Int32, (position[2] - y_offset) / y_scale)
+    @inbounds z = round(Int32, (position[3] - z_offset) / z_scale)
+    intensity = haskey(p, :intensity) ? convert(UInt16, p.intensity) : 0x0000
+    flagbyte1 = (haskey(p, :numberofreturns) ? convert(UInt8, p.numberofreturns) << 4 : 0x10) | (haskey(p, :returnnumber) ? convert(UInt8, p.returnnumber) : 0x01)
+    classification = haskey(p, :classification) ? convert(UInt8, p.classification) : 0x00
+    scan_angle = haskey(p, :scanangle) ? p.scanangle : 0x00
+    user_data = haskey(p, :userdata) ? p.userdata : 0x00
+    pt_src_id = haskey(p, :pointsourceid) ? convert(UInt16, p.pointsourceid) : 0x0000
+    gps_time = haskey(p, :gpstime) ? convert(Float64, p.gpstime) : 0.0
+    red = haskey(p, :color) ? convert(N0f16, p.color.r) : 0N0f16
+    green = haskey(p, :color) ? convert(N0f16, p.color.g) : 0N0f16
+    blue = haskey(p, :color) ? convert(N0f16, p.color.b) : 0N0f16
+    nir = haskey(p, :nir) ? convert(N0f16, p.nir) : 0N0f16
+    flagbyte2 =  haskey(p, :flagbyte2) ? p.flagbyte2 : 0x00
+
+    return LasPoint8(x, y, z, intensity, flagbyte1, flagbyte2, classification, user_data, scan_angle, pt_src_id, gps_time, red, green, blue, nir)
+end
+
 function laspoint3(p::NamedTuple, x_offset, y_offset, z_offset, x_scale, y_scale, z_scale)
     position = p.position
-    @inbounds x = round(Int32, (position[1] - x_offset) / x_scale) 
-    @inbounds y = round(Int32, (position[2] - y_offset) / y_scale) 
-    @inbounds z = round(Int32, (position[3] - z_offset) / z_scale) 
+    @inbounds x = round(Int32, (position[1] - x_offset) / x_scale)
+    @inbounds y = round(Int32, (position[2] - y_offset) / y_scale)
+    @inbounds z = round(Int32, (position[3] - z_offset) / z_scale)
     intensity = haskey(p, :intensity) ? convert(UInt16, p.intensity) : 0x0000
     flagbyte = (haskey(p, :numberofreturns) ? convert(UInt8, p.numberofreturns) << 3 : 0x08) | (haskey(p, :returnnumber) ? convert(UInt8, p.returnnumber) : 0x01)
     raw_classification = haskey(p, :classification) ? convert(UInt8, p.classification) : 0x00
     scan_angle = 0x00
+    # user_data = haskey(p, :userdata) ? p.userdata : 0x00
     user_data = 0x00
     pt_src_id = haskey(p, :pointsourceid) ? convert(UInt16, p.pointsourceid) : 0x0000
     gps_time = haskey(p, :gpstime) ? convert(Float64, p.gpstime) : 0.0
@@ -606,9 +822,9 @@ end
 
 function laspoint2(p::NamedTuple, x_offset, y_offset, z_offset, x_scale, y_scale, z_scale)
     position = p.position
-    @inbounds x = round(Int32, (position[1] - x_offset) / x_scale) 
-    @inbounds y = round(Int32, (position[2] - y_offset) / y_scale) 
-    @inbounds z = round(Int32, (position[3] - z_offset) / z_scale) 
+    @inbounds x = round(Int32, (position[1] - x_offset) / x_scale)
+    @inbounds y = round(Int32, (position[2] - y_offset) / y_scale)
+    @inbounds z = round(Int32, (position[3] - z_offset) / z_scale)
     intensity = haskey(p, :intensity) ? convert(UInt16, p.intensity) : 0x0000
     flagbyte = (haskey(p, :numberofreturns) ? convert(UInt8, p.numberofreturns) << 3 : 0x08) | (haskey(p, :returnnumber) ? convert(UInt8, p.returnnumber) : 0x01)
     raw_classification = haskey(p, :classification) ? convert(UInt8, p.classification) : 0x00
@@ -624,9 +840,9 @@ end
 
 function laspoint1(p::NamedTuple, x_offset, y_offset, z_offset, x_scale, y_scale, z_scale)
     position = p.position
-    @inbounds x = round(Int32, (position[1] - x_offset) / x_scale) 
-    @inbounds y = round(Int32, (position[2] - y_offset) / y_scale) 
-    @inbounds z = round(Int32, (position[3] - z_offset) / z_scale) 
+    @inbounds x = round(Int32, (position[1] - x_offset) / x_scale)
+    @inbounds y = round(Int32, (position[2] - y_offset) / y_scale)
+    @inbounds z = round(Int32, (position[3] - z_offset) / z_scale)
     intensity = haskey(p, :intensity) ? convert(UInt16, p.intensity) : 0x0000
     flagbyte = (haskey(p, :numberofreturns) ? convert(UInt8, p.numberofreturns) << 3 : 0x08) | (haskey(p, :returnnumber) ? convert(UInt8, p.returnnumber) : 0x01)
     raw_classification = haskey(p, :classification) ? convert(UInt8, p.classification) : 0x00
@@ -640,9 +856,9 @@ end
 
 function laspoint0(p::NamedTuple, x_offset, y_offset, z_offset, x_scale, y_scale, z_scale)
     position = p.position
-    @inbounds x = round(Int32, (position[1] - x_offset) / x_scale) 
-    @inbounds y = round(Int32, (position[2] - y_offset) / y_scale) 
-    @inbounds z = round(Int32, (position[3] - z_offset) / z_scale) 
+    @inbounds x = round(Int32, (position[1] - x_offset) / x_scale)
+    @inbounds y = round(Int32, (position[2] - y_offset) / y_scale)
+    @inbounds z = round(Int32, (position[3] - z_offset) / z_scale)
     intensity = haskey(p, :intensity) ? convert(UInt16, p.intensity) : 0x0000
     flagbyte = (haskey(p, :numberofreturns) ? convert(UInt8, p.numberofreturns) << 3 : 0x08) | (haskey(p, :returnnumber) ? convert(UInt8, p.returnnumber) : 0x01)
     raw_classification = haskey(p, :classification) ? convert(UInt8, p.classification) : 0x00
